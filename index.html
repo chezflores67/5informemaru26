@@ -931,6 +931,9 @@ function loadMore(){showAll=true;render();}
 
 // INIT
 render();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
 </script>
 </body>
 </html>
