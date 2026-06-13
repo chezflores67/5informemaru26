@@ -1,16 +1,25 @@
 {
   "name": "5InformeMaru",
   "short_name": "5InformeMaruCampos",
-  "theme_color": "#4a90e2",
-  "background_color": "#2196f3",
-  "display": "standalone",
-  "scope": "./",
+  "id": "/5informemaru26/",
   "start_url": "./index.html",
+  "display": "standalone",
+  "theme_color": "#0D2B5E",
+  "background_color": "#2196f3",
+  "scope": "./",
   "icons": [
     {
       "src": "logogob.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ver Municipios",
+      "url": "./index.html",
+      "icons": [{"src": "logogob.png", "sizes": "512x512"}]
     }
   ]
 }
