@@ -979,11 +979,13 @@ window.addEventListener('appinstalled', () => {
   botonInstalar.style.display = 'none';
   eventoInstalacion = null;
 });
+// Lógica para registrar el Service Worker al inicio
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+
 // INIT
 render();
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-  }
 </script>
 </body>
 </html>
