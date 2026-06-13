@@ -938,7 +938,47 @@ function setSector(v){sectorFlt=v;showAll=false;render();}
 function setTipo(v){tipoFlt=v;showAll=false;render();}
 function setSectorDet(s){sectorFlt=s;render();}
 function loadMore(){showAll=true;render();}
+// ════════════════════════════════════════════
+// LOGICA DE INSTALACIÓN PWA (BOTÓN)
+// ════════════════════════════════════════════
 
+// 1. Registrar el Service Worker de tu app
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+
+let eventoInstalacion;
+const botonInstalar = document.getElementById('btnInstalar');
+
+// 2. Capturar el evento de Chrome que dice que la app es instalable
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Evita que el navegador muestre su aviso automático discreto
+  e.preventDefault();
+  // Guarda el evento para usarlo cuando el usuario presione tu botón
+  eventoInstalacion = e;
+  // Muestra tu botón flotante arriba a la derecha
+  botonInstalar.style.display = 'block';
+});
+
+// 3. Acción cuando el usuario hace clic en tu botón flotante
+botonInstalar.addEventListener('click', async () => {
+  if (eventoInstalacion) {
+    // Abre la ventana oficial de confirmación de instalación de Chrome
+    eventoInstalacion.prompt();
+    // Espera la respuesta del usuario (Aceptar / Cancelar)
+    const { outcome } = await eventoInstalacion.userChoice;
+    console.log(`El usuario eligió: ${outcome}`);
+    // Oculta el botón ya que se procesó la acción
+    eventoInstalacion = null;
+    botonInstalar.style.display = 'none';
+  }
+});
+
+// 4. Asegurarse de ocultar el botón si la app ya se instaló con éxito
+window.addEventListener('appinstalled', () => {
+  botonInstalar.style.display = 'none';
+  eventoInstalacion = null;
+});
 // INIT
 render();
   if ('serviceWorker' in navigator) {
