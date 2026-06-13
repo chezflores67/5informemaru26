@@ -956,8 +956,12 @@ window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   // Guarda el evento para usarlo cuando el usuario presione tu botón
   eventoInstalacion = e;
-  // Muestra tu botón flotante arriba a la derecha
-  botonInstalar.style.display = 'block';
+  
+  // BÚSQUEDA DINÁMICA: Buscamos el botón exactamente cuando se activa el evento
+  const botonFlotante = document.getElementById('btnInstalar');
+  if (botonFlotante) {
+    botonFlotante.style.display = 'block';
+  }
 });
 
 // 3. Acción cuando el usuario hace clic en tu botón flotante
