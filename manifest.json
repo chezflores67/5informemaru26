@@ -4,7 +4,7 @@
   "theme_color": "#4a90e2",
   "background_color": "#2196f3",
   "display": "standalone",
-  "scope": "https://chezflores67.github.io/5informemaru26/",
+  "scope": "./",
   "start_url": "./index.html",
   "icons": [
     {
