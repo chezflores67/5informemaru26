@@ -9,11 +9,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
-  // Configurar worker de PDF.js
-  if(typeof pdfjsLib !== 'undefined'){
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  }
+  // Configurar worker de PDF.js cuando la página cargue completa
+  window.addEventListener('load', function(){
+    if(typeof pdfjsLib !== 'undefined'){
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      console.log('PDF.js worker configurado OK');
+    } else {
+      console.warn('PDF.js no cargó');
+    }
+  });
 </script>
 <style>
 /* ── RESET & BASE ─────────────────────────────── */
@@ -928,202 +933,247 @@ function onDrop(ev){
 
 // ════════════════════════════════════════════
 // LECTURA REAL DEL PDF — TOMO II
-// Usa PDF.js para extraer texto página por página
 // ════════════════════════════════════════════
-async function procesarArchivo(file){
+let tomo2TextoCompleto = "";
+
+function procesarArchivo(file){
   const prog = document.getElementById("t2-progress");
   const bar  = document.getElementById("t2-bar");
   const lbl  = document.getElementById("t2-label");
   if(prog) prog.style.display = "block";
 
-  const setP = (p, msg) => {
+  function setP(p, msg){
     if(bar) bar.style.width = p + "%";
     if(lbl) lbl.textContent = msg;
+  }
+
+  setP(10, "Leyendo archivo PDF…");
+
+  // Leer como ArrayBuffer con FileReader
+  const reader = new FileReader();
+
+  reader.onload = function(e){
+    setP(25, "Procesando PDF…");
+
+    // Verificar que PDF.js está disponible
+    if(typeof pdfjsLib === "undefined"){
+      console.error("PDF.js no disponible");
+      setP(100, "Error: PDF.js no disponible");
+      tomo2Data = [{
+        titulo: "⚠️ " + file.name,
+        contenido: "PDF.js no pudo cargarse. Verifica tu conexión a internet e intenta recargar la página.",
+        menciones: 0
+      }];
+      tomo2TextoCompleto = "";
+      setTimeout(function(){ render(); }, 500);
+      return;
+    }
+
+    // Configurar worker (por si no se hizo antes)
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+    const typedArray = new Uint8Array(e.target.result);
+    setP(35, "Abriendo documento PDF…");
+
+    pdfjsLib.getDocument({data: typedArray}).promise.then(function(pdf){
+      const totalPages = pdf.numPages;
+      setP(40, "PDF abierto — " + totalPages + " páginas encontradas…");
+
+      // Extraer texto página por página con promesas en cadena
+      const pagePromises = [];
+      for(let i = 1; i <= totalPages; i++){
+        pagePromises.push(
+          pdf.getPage(i).then(function(page){
+            return page.getTextContent().then(function(content){
+              return content.items.map(function(item){ return item.str; }).join(" ");
+            });
+          })
+        );
+      }
+
+      // Actualizar progreso conforme avanzan
+      let done = 0;
+      const trackPromises = pagePromises.map(function(p){
+        return p.then(function(txt){
+          done++;
+          const pct = 40 + Math.round((done / totalPages) * 45);
+          setP(pct, "Extrayendo texto… página " + done + " de " + totalPages);
+          return txt;
+        });
+      });
+
+      Promise.all(trackPromises).then(function(textos){
+        setP(88, "Analizando contenido…");
+        tomo2TextoCompleto = textos.join("\n");
+
+        setTimeout(function(){
+          tomo2Data = analizarTextoPDF(tomo2TextoCompleto, file.name, totalPages);
+          setP(100, "¡Tomo II integrado! — " + tomo2Data.length + " secciones");
+          setTimeout(function(){ render(); }, 700);
+        }, 300);
+
+      }).catch(function(err){
+        console.error("Error extrayendo páginas:", err);
+        setP(100, "Error al leer páginas: " + err.message);
+        tomo2Data = [{titulo:"⚠️ Error", contenido: err.message, menciones:0}];
+        setTimeout(function(){ render(); }, 800);
+      });
+
+    }).catch(function(err){
+      console.error("Error abriendo PDF:", err);
+      setP(100, "Error al abrir PDF: " + err.message);
+      tomo2Data = [{
+        titulo: "⚠️ No se pudo abrir el PDF",
+        contenido: "Error: " + err.message + ". Asegúrate de que el archivo es un PDF válido con texto digital (no escaneado).",
+        menciones: 0
+      }];
+      tomo2TextoCompleto = "";
+      setTimeout(function(){ render(); }, 800);
+    });
   };
 
-  try {
-    setP(10, "Leyendo archivo PDF…");
+  reader.onerror = function(){
+    setP(100, "Error al leer el archivo");
+    tomo2Data = [{titulo:"⚠️ Error de lectura", contenido:"No se pudo leer el archivo.", menciones:0}];
+    setTimeout(function(){ render(); }, 500);
+  };
 
-    // Leer el archivo como ArrayBuffer
-    const arrayBuffer = await file.arrayBuffer();
-    setP(25, "Cargando PDF.js…");
-
-    // Esperar a que PDF.js esté disponible
-    if(typeof pdfjsLib === "undefined"){
-      throw new Error("PDF.js no disponible. Verifica tu conexión a internet.");
-    }
-
-    setP(35, "Abriendo documento PDF…");
-    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
-    const totalPages = pdf.numPages;
-
-    setP(40, `PDF abierto — ${totalPages} páginas encontradas…`);
-
-    // Extraer texto de todas las páginas
-    let fullText = "";
-    for(let p = 1; p <= totalPages; p++){
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      const pageText = content.items.map(i => i.str).join(" ");
-      fullText += pageText + "\n";
-      // Actualizar progreso
-      const pct = 40 + Math.round((p / totalPages) * 45);
-      setP(pct, `Extrayendo texto… página ${p} de ${totalPages}`);
-    }
-
-    setP(88, "Identificando secciones y datos…");
-    await new Promise(r => setTimeout(r, 300));
-
-    // Analizar el texto extraído y construir secciones reales
-    tomo2Data = analizarTextoPDF(fullText, file.name, totalPages);
-    tomo2TextoCompleto = fullText; // Guardar para búsquedas
-
-    setP(100, "¡Tomo II integrado correctamente!");
-    await new Promise(r => setTimeout(r, 600));
-    render();
-
-  } catch(err) {
-    console.error("Error procesando PDF:", err);
-    if(lbl) lbl.textContent = "Error: " + err.message;
-    if(bar) bar.style.width = "0%";
-    // Fallback: marcar como cargado con info del archivo
-    tomo2Data = [{
-      titulo: "Archivo cargado: " + file.name,
-      contenido: `El archivo fue recibido (${(file.size/1024/1024).toFixed(1)} MB, ${file.type}). ` +
-        "No se pudo extraer el texto automáticamente. " +
-        "Esto puede ocurrir si el PDF contiene imágenes escaneadas en lugar de texto digital. " +
-        "La información del Tomo I sigue disponible completa."
-    }];
-    await new Promise(r => setTimeout(r, 800));
-    render();
-  }
+  reader.readAsArrayBuffer(file);
 }
-
-// Variable para guardar el texto completo del Tomo II
-let tomo2TextoCompleto = "";
 
 // ════════════════════════════════════════════
 // ANÁLISIS REAL DEL TEXTO EXTRAÍDO
-// Detecta secciones, cifras y datos relevantes
 // ════════════════════════════════════════════
 function analizarTextoPDF(texto, nombre, totalPages){
   const secciones = [];
   const textoU = texto.toUpperCase();
 
-  // Detectar ejes del informe en el texto real
+  // Patrones de secciones del 5to Informe Tomo II
   const patrones = [
     {
-      clave: ["EJE 1","BIENESTAR","DESARROLLO HUMANO","SALUD","EDUCACION","EDUCACIÓN"],
-      titulo: "Eje 1 — Bienestar y Desarrollo Humano",
-      icon: "👨‍👩‍👧"
+      claves: ["EJE 1","BIENESTAR","SALUD","EDUCACION","EDUCACIÓN","DESARROLLO HUMANO"],
+      titulo: "🏥 Eje 1 — Bienestar y Desarrollo Humano"
     },
     {
-      clave: ["EJE 2","SEGURIDAD","JUSTICIA","POLICIA","POLICÍA","DELITO","INCIDENCIA"],
-      titulo: "Eje 2 — Seguridad y Justicia",
-      icon: "🔒"
+      claves: ["SEGURIDAD","JUSTICIA","POLICIA","POLICÍA","DELITO","INCIDENCIA","CRIMEN","PREVENCION"],
+      titulo: "🔒 Seguridad y Justicia"
     },
     {
-      clave: ["EJE 3","CRECIMIENTO","ECONOMICO","ECONÓMICO","EMPLEO","INDUSTRIA","INVERSION"],
-      titulo: "Eje 3 — Crecimiento Económico",
-      icon: "📈"
+      claves: ["EJE 3","CRECIMIENTO","ECONOMICO","ECONÓMICO","EMPLEO","EMPRESA","INDUSTRIA"],
+      titulo: "📈 Eje 3 — Crecimiento Económico"
     },
     {
-      clave: ["EJE 4","TERRITORIO","SUSTENTABLE","MEDIO AMBIENTE","ECOLOG","AGUA","REFOREST"],
-      titulo: "Eje 4 — Territorio Sustentable",
-      icon: "🌿"
+      claves: ["TERRITORIO","SUSTENTABLE","MEDIO AMBIENTE","ECOLOG","REFOREST","RESIDUO","CLIMA"],
+      titulo: "🌿 Territorio y Medio Ambiente"
     },
     {
-      clave: ["EJE 5","GOBIERNO","HONESTO","EFICIENTE","TRANSPARENCIA","AUDITORIA","AUDITORÍA"],
-      titulo: "Eje 5 — Gobierno Honesto y Eficiente",
-      icon: "⚖️"
+      claves: ["GOBIERNO","HONESTO","EFICIENTE","TRANSPARENCIA","AUDITORIA","AUDITORÍA","PRESUPUESTO"],
+      titulo: "⚖️ Gobierno Honesto y Eficiente"
     },
     {
-      clave: ["CONVENIO","ACUERDO","FEDERAL","MUNICIPIO","COORDINACION","COORDINACIÓN"],
-      titulo: "Convenios y Acuerdos",
-      icon: "🤝"
+      claves: ["CONVENIO","ACUERDO","FEDERAL","COORDINACION","COORDINACIÓN","MUNICIPIO"],
+      titulo: "🤝 Convenios y Acuerdos"
     },
     {
-      clave: ["INDICADOR","DESEMPEÑO","DESEMPENO","META","AVANCE","RESULTADO"],
-      titulo: "Indicadores de Desempeño",
-      icon: "🎯"
+      claves: ["INDICADOR","DESEMPEÑO","DESEMPENO","META","AVANCE","RESULTADO","EVALUACION"],
+      titulo: "🎯 Indicadores de Desempeño"
     },
     {
-      clave: ["PRESUPUESTO","GASTO","EJERCICIO","EGRESO","RECURSO"],
-      titulo: "Ejercicio Presupuestal",
-      icon: "💰"
+      claves: ["INVERSION","INVERSIÓN","OBRA","PROGRAMA","PROYECTO","MILLONES","PESOS"],
+      titulo: "💰 Inversión y Obras"
+    },
+    {
+      claves: ["AGUA","DRENAJE","SANEAMIENTO","POTABLE","PRESA"],
+      titulo: "💧 Agua y Saneamiento"
+    },
+    {
+      claves: ["CARRETERA","CAMINO","PUENTE","VIAL","INFRAESTRUCTURA"],
+      titulo: "🛣️ Infraestructura Vial"
     },
   ];
 
-  // Extraer fragmentos relevantes del texto para cada sección
-  patrones.forEach(p => {
-    const encontrado = p.clave.some(k => textoU.includes(k));
-    if(!encontrado) return;
+  patrones.forEach(function(p){
+    // Contar menciones de todas las claves
+    var menciones = 0;
+    var primeraPos = -1;
+    p.claves.forEach(function(k){
+      var pos = textoU.indexOf(k);
+      if(pos !== -1){
+        if(primeraPos === -1 || pos < primeraPos) primeraPos = pos;
+        var re = new RegExp(k, "g");
+        var m = textoU.match(re);
+        if(m) menciones += m.length;
+      }
+    });
 
-    // Buscar contexto alrededor de la primera aparición
-    const idx = textoU.indexOf(p.clave.find(k => textoU.includes(k)));
-    const inicio = Math.max(0, idx - 100);
-    const fin = Math.min(texto.length, idx + 400);
-    const fragmento = texto.slice(inicio, fin)
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 300);
+    if(menciones === 0) return; // No encontrado en el texto
 
-    // Contar menciones para dar peso
-    const menciones = p.clave.reduce((n, k) => {
-      const regex = new RegExp(k, "gi");
-      const m = texto.match(regex);
-      return n + (m ? m.length : 0);
-    }, 0);
+    // Extraer fragmento real del texto
+    var fragmento = "";
+    if(primeraPos !== -1){
+      var inicio = Math.max(0, primeraPos - 50);
+      var fin = Math.min(texto.length, primeraPos + 350);
+      fragmento = texto.slice(inicio, fin)
+        .replace(/\s+/g, " ")
+        .replace(/[^\w\s\.,;:áéíóúÁÉÍÓÚñÑüÜ\$%\/\-–—()]/g, "")
+        .trim();
+    }
 
     secciones.push({
-      titulo: p.icon + " " + p.titulo,
-      contenido: fragmento.length > 50
-        ? `${fragmento}…`
-        : `Sección identificada en el documento (${menciones} referencias encontradas).`,
-      menciones
+      titulo: p.titulo,
+      contenido: fragmento.length > 40
+        ? fragmento.slice(0, 300) + "…"
+        : "Sección identificada — " + menciones + " referencias en el documento.",
+      menciones: menciones
     });
   });
 
-  // Extraer cifras destacadas del texto
-  const cifras = [];
-  const regexMillon = /(\$[\d,\.]+\s*(?:millones?|mdp|MDP|mil millones?))/gi;
-  const montos = texto.match(regexMillon) || [];
-  const montosUnicos = [...new Set(montos)].slice(0, 8);
+  // Extraer cifras reales del texto
+  var regexMontos = /\$[\d,\.]+\s*(?:millones?|mil millones?|mdp|MDP|pesos?)/gi;
+  var montos = texto.match(regexMontos) || [];
+  var montosUnicos = [];
+  montos.forEach(function(m){
+    if(montosUnicos.indexOf(m) === -1) montosUnicos.push(m);
+  });
+
   if(montosUnicos.length > 0){
-    cifras.push({
-      titulo: "💵 Cifras identificadas en el documento",
-      contenido: `Se encontraron ${montos.length} referencias a montos en el Tomo II. Ejemplos: ${montosUnicos.join(", ")}.`,
+    secciones.push({
+      titulo: "💵 Cifras económicas encontradas",
+      contenido: montosUnicos.slice(0, 10).join(" · "),
       menciones: montos.length
     });
   }
 
-  // Estadísticas del documento
-  const palabras = texto.split(/\s+/).length;
-  const municipiosMencionados = Object.keys(RAW).filter(m =>
-    texto.toLowerCase().includes(m.toLowerCase())
-  );
+  // Municipios mencionados realmente
+  var munMencionados = Object.keys(RAW).filter(function(m){
+    return texto.toLowerCase().indexOf(m.toLowerCase()) !== -1;
+  });
 
+  // Estadísticas reales del documento
+  var palabras = texto.split(/\s+/).length;
   secciones.push({
     titulo: "📄 Estadísticas del Tomo II",
-    contenido: `Documento: ${nombre} · ${totalPages} páginas procesadas · ` +
-      `${palabras.toLocaleString()} palabras extraídas · ` +
-      `${municipiosMencionados.length} municipios mencionados: ` +
-      municipiosMencionados.slice(0, 10).join(", ") +
-      (municipiosMencionados.length > 10 ? ` y ${municipiosMencionados.length - 10} más.` : "."),
+    contenido: nombre + " · " + totalPages + " páginas · " +
+      palabras.toLocaleString() + " palabras extraídas · " +
+      munMencionados.length + " municipios mencionados" +
+      (munMencionados.length > 0 ? ": " + munMencionados.slice(0,8).join(", ") +
+        (munMencionados.length > 8 ? " y " + (munMencionados.length-8) + " más." : ".") : "."),
     menciones: 999
   });
 
-  // Ordenar por menciones y combinar con cifras
-  const resultado = [...secciones, ...cifras]
-    .sort((a, b) => b.menciones - a.menciones);
+  // Ordenar por menciones (más relevante primero)
+  secciones.sort(function(a,b){ return b.menciones - a.menciones; });
 
-  return resultado.length > 0 ? resultado : [{
+  return secciones.length > 0 ? secciones : [{
     titulo: "📂 " + nombre,
-    contenido: `Documento procesado: ${totalPages} páginas, ${palabras.toLocaleString()} palabras. ` +
-      "El texto fue extraído correctamente. Usa la búsqueda para encontrar información específica.",
+    contenido: "Documento procesado: " + totalPages + " páginas, " +
+      texto.split(/\s+/).length.toLocaleString() + " palabras. " +
+      "El PDF puede contener imágenes escaneadas sin texto digital.",
     menciones: 0
   }];
 }
+
 function clearTomo2(){tomo2Data=null;render();}
 
 // ════════════════════════════════════════════
