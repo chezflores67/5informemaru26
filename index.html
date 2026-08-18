@@ -272,6 +272,23 @@ footer{background:#0D2B5E;color:rgba(255,255,255,.8);
 .tb-val{font-size:11px;font-weight:700;flex-shrink:0}
 .tb-bg{background:#E8EEF6;border-radius:4px;height:6px;overflow:hidden}
 .tb-fill{height:100%;border-radius:4px}
+
+/* Panel de detalle expandible */
+.obra-expand{display:none;margin-top:10px;border-top:1px dashed var(--borde);padding-top:10px}
+.obra-expand.open{display:block}
+.expand-btn{width:100%;padding:7px 0 0;background:none;border:none;
+  cursor:pointer;font-size:11px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  transition:color .2s}
+.expand-btn:active{opacity:.7}
+.detail-row{display:flex;gap:8px;margin-bottom:7px;align-items:flex-start}
+.detail-label{font-size:10px;font-weight:700;color:var(--txt2);
+  min-width:90px;flex-shrink:0;padding-top:1px;text-transform:uppercase;
+  letter-spacing:.04em}
+.detail-val{font-size:12px;color:var(--txt);line-height:1.5;flex:1}
+.detail-val b{color:var(--azul)}
+.detail-highlight{background:var(--azul);color:#fff;border-radius:8px;
+  padding:10px 13px;margin-top:4px;font-size:11px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -565,6 +582,71 @@ function renderDetalle(mun){
           <div><div class="obra-monto">${fmt(o.m)}</div><div class="obra-pct">${pct}% del total</div></div>
         </div>
         <div class="obra-bar-bg"><div class="obra-bar-fill" style="width:${pct}%;background:${sc.c}"></div></div>
+
+        <!-- Botón Ver detalle -->
+        <button class="expand-btn" style="color:${sc.c}"
+          onclick="(function(btn){
+            const panel=btn.nextElementSibling;
+            const open=panel.classList.toggle('open');
+            btn.innerHTML=open
+              ?'&#9650; Ocultar detalle'
+              :'&#9660; Ver detalle completo';
+          })(this)">
+          &#9660; Ver detalle completo
+        </button>
+
+        <!-- Panel expandible con información completa -->
+        <div class="obra-expand">
+          <div class="detail-row">
+            <span class="detail-label">📋 Programa / Obra</span>
+            <span class="detail-val">${o.d.replace(" (Tomo II)","")}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">🏛️ Sector</span>
+            <span class="detail-val"><b>${o.s}</b> · ${o.t}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">📖 Eje de gobierno</span>
+            <span class="detail-val">${o.e}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">📍 Municipio</span>
+            <span class="detail-val"><b>${mun}</b> · Región ${d.r} · Chihuahua</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">💰 Inversión</span>
+            <span class="detail-val">
+              <span style="font-size:15px;font-weight:800;color:var(--azul)">${fmt(o.m)}</span><br/>
+              <span style="font-size:10px;color:var(--txt2)">${fmtFull(o.m)} · ${pct}% del total municipal</span>
+            </span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">👥 Beneficiarios</span>
+            <span class="detail-val">${o.b}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">📂 Fuente oficial</span>
+            <span class="detail-val">
+              ${o.d.includes("(Tomo II)")
+                ?"<b>Tomo II</b> · Ejes 3, 4 y 5 — Ordenamiento Territorial, Seguridad y Buen Gobierno (397 págs.)"
+                :"<b>Tomo I</b> · Ejes 1 y 2 — Bienestar Social y Crecimiento Económico (498 págs.)"}
+              <br/><span style="font-size:10px;color:var(--txt2)">5to Informe de Gobierno · Gobernadora María Eugenia Campos Galván · Chihuahua 2025</span>
+            </span>
+          </div>
+          <div class="detail-highlight">
+            ℹ️ <b>Contexto:</b> Este registro fue extraído del documento oficial publicado en
+            chihuahua.gob.mx. El monto de <b>${fmt(o.m)}</b> corresponde a la inversión
+            ${o.t==="Apoyo social"||o.t==="Programa"
+              ?"ejercida en este programa de apoyo a la ciudadanía"
+              :o.t==="Construcción"
+              ?"destinada a la construcción de esta obra de infraestructura"
+              :o.t==="Rehabilitación"
+              ?"invertida en la rehabilitación y mejora de esta infraestructura"
+              :"registrada en este proyecto"}
+            durante el período enero 2022 – diciembre 2025 en el municipio de ${mun}.
+          </div>
+        </div>
+
       </div>`;
     }).join("")}
   </div>
