@@ -462,7 +462,6 @@ function renderMunicipios(){
   const hasF=searchQ||sectorFlt!=="Todos"||regionFlt!=="Todas"||tipoFlt!=="Todos";
 
   return `
-  <!-- Stats -->
   <div class="stats-scroll">
     <div class="stat-chip"><div class="stat-chip-icon">🏛️</div><div class="stat-chip-val" style="color:var(--azul)">67/67</div><div class="stat-chip-label">Municipios cubiertos</div></div>
     <div class="stat-chip"><div class="stat-chip-icon">💰</div><div class="stat-chip-val" style="color:var(--green)">${fmt(TOTAL_MUNICIPAL)}</div><div class="stat-chip-label">Inversión municipal</div></div>
@@ -470,7 +469,6 @@ function renderMunicipios(){
     <div class="stat-chip"><div class="stat-chip-icon">🗺️</div><div class="stat-chip-val" style="color:#D97706">4</div><div class="stat-chip-label">Regiones</div></div>
   </div>
 
-  <!-- Búsqueda -->
   <div class="search-box">
     <div class="search-box-title">🔍 Busca tu municipio</div>
     <div class="search-input-wrap">
@@ -481,11 +479,9 @@ function renderMunicipios(){
       <button class="si-clear" id="si-clear-btn" onclick="clearSearch()"
         style="display:${searchQ?'flex':'none'}">✕</button>
     </div>
-    <!-- Filtros rápidos por región -->
     <div class="filter-chips" id="region-chips">
       ${REGIONES.map(r=>`<span class="fchip ${regionFlt===r?"active":""}" onclick="setRegion('${r}')">${r==="Todas"?"🗺️ Todas":r}</span>`).join("")}
     </div>
-    <!-- Selector sector y tipo -->
     <div class="filter-row">
       <select onchange="setSector(this.value)">
         <option value="Todos">📌 Todos los sectores</option>
@@ -498,12 +494,10 @@ function renderMunicipios(){
     <div id="search-info-container">${hasF?`📊 ${filt.length} municipio${filt.length!==1?"s":""} · <span style="color:var(--azul);font-weight:700;cursor:pointer" onclick="clearAll()">Limpiar ✕</span>`:""}</div>
   </div>
 
-  <!-- Grid -->
   <div class="mun-grid" id="mun-grid-container">${renderMunGridItems(disp)}</div>
   ${disp.length===0?`<div class="empty"><div class="empty-icon">🔎</div><div class="empty-msg">Sin resultados</div><div class="empty-sub">Intenta otros filtros</div></div>`:""}
   <div id="more-btn-container">${filt.length>30&&!showAll?`<button class="btn-more" onclick="loadMore()">↓ Ver ${filt.length-30} municipios más</button>`:""}</div>
 
-  <!-- Chart estado -->
   <div class="chart-card">
     <div class="chart-title">📊 Inversión por sector</div>
     <div class="chart-wrap"><canvas id="ch-pie"></canvas></div>
@@ -539,7 +533,6 @@ function renderDetalle(mun){
       <div class="hero-chip"><span>Mayor inversión</span>${fmt(d.o[0]?.m||0)}</div>
     </div>
   </div>
-  <!-- Gráficas municipio -->
   <div class="chart-card">
     <div class="chart-title">Distribución por sector</div>
     <div class="chart-wrap"><canvas id="ch-mun-pie"></canvas></div>
@@ -549,7 +542,6 @@ function renderDetalle(mun){
     <div class="chart-title">Top obras por monto</div>
     <div id="tb-mun"></div>
   </div>
-  <!-- Filtros sector -->
   <div class="sec-scroll">
     <span class="sec-chip ${sectorFlt==="Todos"?"active-all":""}" onclick="setSectorDet('Todos')">Todos (${d.o.length})</span>
     <span class="sec-chip ${sectorFlt==="__TOMO2__"?"active-all":""}"
@@ -564,7 +556,6 @@ function renderDetalle(mun){
       return `<span class="sec-chip" style="${act?"background:"+sc.bg+";color:"+sc.c+";border-color:"+sc.c:""}" onclick="setSectorDet('${s}')">${sc.icon} ${s} (${cnt})</span>`;
     }).join("")}
   </div>
-  <!-- Obras -->
   <div class="obras-list">
     ${obras.map(o=>{
       const sc=SEC[o.s]||{c:"#888",bg:"#F5F5F5",icon:"📌"};
@@ -583,7 +574,6 @@ function renderDetalle(mun){
         </div>
         <div class="obra-bar-bg"><div class="obra-bar-fill" style="width:${pct}%;background:${sc.c}"></div></div>
 
-        <!-- Botón Ver detalle -->
         <button class="expand-btn" style="color:${sc.c}"
           onclick="(function(btn){
             const panel=btn.nextElementSibling;
@@ -595,7 +585,6 @@ function renderDetalle(mun){
           &#9660; Ver detalle completo
         </button>
 
-        <!-- Panel expandible con información completa -->
         <div class="obra-expand">
           <div class="detail-row">
             <span class="detail-label">📋 Programa / Obra</span>
@@ -685,7 +674,6 @@ function renderDashboard(){
     <div class="chart-wrap"><canvas id="ch-tipo"></canvas></div>
   </div>
 
-  <!-- TOMO II — EJES 3, 4 y 5 -->
   <div style="background:#1E293B;border-radius:14px;padding:14px;margin-bottom:10px">
     <div style="color:#fff;font-size:14px;font-weight:800;margin-bottom:4px">
       📂 Tomo II — Ejes 3, 4 y 5
@@ -1211,7 +1199,6 @@ function renderAyuda(){
   ];
 
   return `
-  <!-- Hero ayuda -->
   <div style="background:linear-gradient(135deg,#0D2B5E,#2351A0);border-radius:14px;
     padding:18px;margin-bottom:12px;color:#fff;text-align:center">
     <div style="font-size:40px;margin-bottom:8px">❓</div>
@@ -1222,7 +1209,6 @@ function renderAyuda(){
     </div>
   </div>
 
-  <!-- Stats rápidos -->
   <div class="stats-scroll" style="margin-bottom:12px">
     <div class="stat-chip"><div class="stat-chip-icon">🏛️</div><div class="stat-chip-val" style="color:var(--azul)">67</div><div class="stat-chip-label">Municipios</div></div>
     <div class="stat-chip"><div class="stat-chip-icon">📄</div><div class="stat-chip-val" style="color:#2563EB">637</div><div class="stat-chip-label">Obras Tomo I</div></div>
@@ -1230,7 +1216,6 @@ function renderAyuda(){
     <div class="stat-chip"><div class="stat-chip-icon">💰</div><div class="stat-chip-val" style="color:var(--green)">$2,035M</div><div class="stat-chip-label">Inversión</div></div>
   </div>
 
-  <!-- Secciones de ayuda -->
   ${secciones.map(sec=>`
   <div style="background:var(--card);border-radius:12px;border:1px solid var(--borde);
     overflow:hidden;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.05)">
@@ -1257,7 +1242,6 @@ function renderAyuda(){
     </div>
   </div>`).join('')}
 
-  <!-- Preguntas frecuentes -->
   <div style="background:var(--card);border-radius:12px;border:1px solid var(--borde);
     overflow:hidden;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.05)">
     <div style="background:#FEF9EC;padding:12px 14px;display:flex;align-items:center;gap:10px;
@@ -1281,7 +1265,6 @@ function renderAyuda(){
     </div>`).join('')}
   </div>
 
-  <!-- Enlace PDF manual -->
   <div style="background:linear-gradient(135deg,#0D2B5E,#1A3A6B);border-radius:12px;
     padding:14px;margin-bottom:10px;text-align:center;color:#fff">
     <div style="font-size:28px;margin-bottom:8px">📄</div>
@@ -1296,7 +1279,6 @@ function renderAyuda(){
     </a>
   </div>
 
-  <!-- Firma -->
   <div style="text-align:center;padding:10px 0 4px">
     <div style="font-size:13px;font-weight:800;color:var(--oro,#C8A84B)">SMARTAPPS</div>
     <div style="font-size:11px;color:var(--txt2)">Creada por Lic. Agustín Flores C. 2026</div>
